@@ -2,7 +2,7 @@ name: ASMR Video Automation
 
 on:
   schedule:
-    - cron: '0 */8 * * *'  # Run every 8 hours
+    - cron: '0 */8 * * *'  # Every 8 hours
   workflow_dispatch:
     inputs:
       force_run:
@@ -13,117 +13,100 @@ on:
 jobs:
   asmr-automation:
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # Enough time for video rendering and upload
+    timeout-minutes: 45  # Enough time for video generation
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-        cache: 'pip'
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libfontconfig1 libxrender1
-        ffmpeg -version  # Verify ffmpeg installation
+      - name: 🧱 Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libfontconfig1 libxrender1
+          ffmpeg -version
 
-    - name: Upgrade pip and install wheel
-      run: |
-        python -m pip install --upgrade pip setuptools wheel
+      - name: ⬆️ Upgrade pip & setuptools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
 
-    - name: Install Python dependencies
-      run: |
-        pip install -r requirements.txt --verbose
-        python -c "import gspread; print('✅ gspread imported successfully')"
-        python -c "import moviepy.editor; print('✅ moviepy imported successfully')"
-        python -c "import requests; print('✅ requests imported successfully')"
-        python -c "from google.oauth2.service_account import Credentials; print('✅ Google auth imported successfully')"
+      - name: 📦 Install Python dependencies
+        run: |
+          pip install -r requirements.txt --verbose
+          python -c "import gspread; print('✅ gspread imported')"
+          python -c "import moviepy.editor; print('✅ moviepy imported')"
+          python -c "import requests; print('✅ requests imported')"
+          python -c "from google.oauth2.service_account import Credentials; print('✅ google-auth imported')"
 
-    - name: Validate environment variables
-      run: |
-        echo "Checking required environment variables..."
-        [ -z "$GOOGLE_SHEET_ID" ] && echo "❌ GOOGLE_SHEET_ID is not set" && exit 1
-        [ -z "$GOOGLE_CREDENTIALS_JSON" ] && echo "❌ GOOGLE_CREDENTIALS_JSON is not set" && exit 1
-        echo "✅ All required environment variables are set"
-      env:
-        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+      - name: 🔍 Validate environment variables
+        run: |
+          echo "Checking required environment variables..."
+          [ -z "$GOOGLE_SHEET_ID" ] && echo "❌ GOOGLE_SHEET_ID missing" && exit 1
+          [ -z "$GOOGLE_CREDENTIALS_JSON" ] && echo "❌ GOOGLE_CREDENTIALS_JSON missing" && exit 1
+          echo "✅ Environment variables are set"
+        env:
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
 
-    - name: Test Google Sheets connection
-      run: |
-        python - <<EOF
-import os
-import json
-import base64
-import gspread
+      - name: 🔗 Test Google Sheets connection
+        run: |
+          python -c "
+import os, json, base64, gspread
 from google.oauth2.service_account import Credentials
+google_creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+creds_data = json.loads(base64.b64decode(google_creds_json).decode())
+creds = Credentials.from_service_account_info(creds_data, scopes=['https://www.googleapis.com/auth/spreadsheets'])
+gc = gspread.authorize(creds)
+sheet_id = os.getenv('GOOGLE_SHEET_ID')
+spreadsheet = gc.open_by_key(sheet_id)
+print(f'✅ Connected to Google Sheet: {spreadsheet.title}')
+"        
+        env:
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
 
-try:
-    google_creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
-    creds_data = json.loads(base64.b64decode(google_creds_json).decode())
-    creds = Credentials.from_service_account_info(
-        creds_data,
-        scopes=['https://www.googleapis.com/auth/spreadsheets']
-    )
-    gc = gspread.authorize(creds)
-    sheet_id = os.getenv('GOOGLE_SHEET_ID')
-    spreadsheet = gc.open_by_key(sheet_id)
-    print(f'✅ Successfully connected to Google Sheet: {spreadsheet.title}')
-except Exception as e:
-    print(f'❌ Google Sheets connection failed: {e}')
-    exit(1)
-EOF
-      env:
-        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+      - name: 🤖 Run ASMR Automation
+        run: |
+          echo "🚀 Starting ASMR automation cycle..."
+          python amrcode.py 2>&1 | tee automation.log
+        env:
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RUN_ONCE: "true"
+          PYTHONUNBUFFERED: "1"
 
-    - name: Run ASMR automation
-      env:
-        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
-        YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        RUN_ONCE: "true"
-        PYTHONUNBUFFERED: "1"
-      run: |
-        echo "🚀 Starting ASMR automation..."
-        python asmr-automation-agent.py 2>&1 | tee automation.log
+      - name: 📤 Upload logs and artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-logs-${{ github.run_number }}
+          path: |
+            *.log
+            *.txt
+            *.mp4
+            *.mp3
+            *.wav
+          retention-days: 7
 
-    - name: Upload logs and artifacts
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: automation-logs-${{ github.run_number }}
-        path: |
-          *.log
-          *.txt
-          *.mp4
-          *.mp3
-          *.wav
-        retention-days: 7
-
-    - name: Check automation results
-      if: always()
-      run: |
-        if [ -f "automation.log" ]; then
-          echo "📋 Automation log summary:"
-          tail -20 automation.log
-
-          if grep -q "✅ Automation cycle completed" automation.log; then
-            echo "🎉 Automation completed successfully!"
-          else
-            echo "⚠️ Automation may have encountered issues"
-            exit 1
+      - name: ✅ Check Automation Results
+        if: always()
+        run: |
+          if [ -f "automation.log" ]; then
+            echo "📋 Automation log summary:"
+            tail -20 automation.log
+            grep -q "✅ Automation cycle completed" automation.log && echo "🎉 Success!" || { echo "⚠️ Issues detected"; exit 1; }
           fi
-        fi
 
-    - name: Cleanup temporary files
-      if: always()
-      run: |
-        echo "🧹 Cleaning up temporary files..."
-        rm -f *.mp4 *.mp3 *.wav sound_*.* *.tmp
-        echo "✅ Cleanup completed"
+      - name: 🧹 Cleanup temporary files
+        if: always()
+        run: |
+          echo "🧹 Cleaning temporary files..."
+          rm -f *.mp4 *.mp3 *.wav *.tmp sound_*.*
+          echo "✅ Cleanup complete"
