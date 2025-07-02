@@ -2,7 +2,7 @@ name: ASMR Video Automation
 
 on:
   schedule:
-    - cron: '0 */8 * * *'  # Every 8 hours
+    - cron: '0 */8 * * *'  # Run every 8 hours
   workflow_dispatch:
     inputs:
       force_run:
@@ -13,58 +13,49 @@ on:
 jobs:
   asmr-automation:
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # Increased timeout for video processing
-    
+    timeout-minutes: 45  # Enough time for video rendering and upload
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-        cache: 'pip'  # Cache pip dependencies
-        
+        cache: 'pip'
+
     - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libfontconfig1 libxrender1
-        # Verify ffmpeg installation
-        ffmpeg -version
-        
+        ffmpeg -version  # Verify ffmpeg installation
+
     - name: Upgrade pip and install wheel
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        
+
     - name: Install Python dependencies
       run: |
-        # Install requirements with verbose output for debugging
         pip install -r requirements.txt --verbose
-        # Verify critical imports
         python -c "import gspread; print('✅ gspread imported successfully')"
         python -c "import moviepy.editor; print('✅ moviepy imported successfully')"
         python -c "import requests; print('✅ requests imported successfully')"
         python -c "from google.oauth2.service_account import Credentials; print('✅ Google auth imported successfully')"
-        
+
     - name: Validate environment variables
       run: |
         echo "Checking required environment variables..."
-        if [ -z "$GOOGLE_SHEET_ID" ]; then
-          echo "❌ GOOGLE_SHEET_ID is not set"
-          exit 1
-        fi
-        if [ -z "$GOOGLE_CREDENTIALS_JSON" ]; then
-          echo "❌ GOOGLE_CREDENTIALS_JSON is not set"
-          exit 1
-        fi
-        echo "✅ Required environment variables are set"
+        [ -z "$GOOGLE_SHEET_ID" ] && echo "❌ GOOGLE_SHEET_ID is not set" && exit 1
+        [ -z "$GOOGLE_CREDENTIALS_JSON" ] && echo "❌ GOOGLE_CREDENTIALS_JSON is not set" && exit 1
+        echo "✅ All required environment variables are set"
       env:
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
         GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
-        
+
     - name: Test Google Sheets connection
       run: |
-        python -c "
+        python - <<EOF
 import os
 import json
 import base64
@@ -85,11 +76,11 @@ try:
 except Exception as e:
     print(f'❌ Google Sheets connection failed: {e}')
     exit(1)
-        "
+EOF
       env:
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
         GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
-        
+
     - name: Run ASMR automation
       env:
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
@@ -97,11 +88,11 @@ except Exception as e:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         RUN_ONCE: "true"
-        PYTHONUNBUFFERED: "1"  # Ensure real-time output
+        PYTHONUNBUFFERED: "1"
       run: |
         echo "🚀 Starting ASMR automation..."
         python asmr-automation-agent.py 2>&1 | tee automation.log
-        
+
     - name: Upload logs and artifacts
       if: always()
       uses: actions/upload-artifact@v4
@@ -114,14 +105,14 @@ except Exception as e:
           *.mp3
           *.wav
         retention-days: 7
-        
+
     - name: Check automation results
       if: always()
       run: |
         if [ -f "automation.log" ]; then
           echo "📋 Automation log summary:"
           tail -20 automation.log
-          
+
           if grep -q "✅ Automation cycle completed" automation.log; then
             echo "🎉 Automation completed successfully!"
           else
@@ -129,7 +120,7 @@ except Exception as e:
             exit 1
           fi
         fi
-        
+
     - name: Cleanup temporary files
       if: always()
       run: |
