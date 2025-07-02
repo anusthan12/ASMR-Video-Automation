@@ -14,35 +14,36 @@ jobs:
   asmr-automation:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-
+      
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-
+        
     - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg
-
+        
     - name: Install Python dependencies
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
-
+        
     - name: Run ASMR automation
       env:
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
         GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         RUN_ONCE: "true"
       run: |
         python asmr-automation-agent.py
-
+        
     - name: Upload logs
       if: always()
       uses: actions/upload-artifact@v4
@@ -52,7 +53,7 @@ jobs:
           *.log
           *.txt
         retention-days: 7
-
+        
     - name: Cleanup
       if: always()
       run: |
