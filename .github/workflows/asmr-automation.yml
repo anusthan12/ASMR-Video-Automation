@@ -2,10 +2,7 @@ name: ASMR Video Automation
 
 on:
   schedule:
-    # Run every 8 hours: at 00:00, 08:00, and 16:00 UTC
     - cron: '0 */8 * * *'
-  
-  # Allow manual triggering
   workflow_dispatch:
     inputs:
       force_run:
@@ -46,7 +43,7 @@ jobs:
       run: |
         python asmr-automation-agent.py
         
-    - name: Upload logs (if any)
+    - name: Upload logs
       if: always()
       uses: actions/upload-artifact@v3
       with:
