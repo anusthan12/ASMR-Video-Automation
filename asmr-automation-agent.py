@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-ASMR Bug adder
+ASMR Video Automation Agent
+Generates glass fruit ASMR videos every 8 hours using free AI tools
 """
 
 import os
@@ -14,7 +15,15 @@ import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import openai
+
+# Make OpenAI import optional
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("⚠️ OpenAI not available - using alternative methods")
+
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeVideoClip
 import subprocess
 
@@ -58,7 +67,7 @@ class ASMRVideoAutomation:
             
     def setup_apis(self):
         """Setup external API connections"""
-        if self.openai_api_key:
+        if OPENAI_AVAILABLE and self.openai_api_key:
             openai.api_key = self.openai_api_key
             
     def get_settings(self) -> Dict:
@@ -137,7 +146,7 @@ Camera is fixed in 9:16 vertical format, focusing on the cut and the vibrantly c
 
         return base_prompt
     
-    def generate_video_with_qwen(self, prompt: str) -> Optional[str]:
+    def generate_video_with_qwen(self, prompt: str, fruit_name: str) -> Optional[str]:
         """Generate video using Qwen AI (free tier)"""
         try:
             # This is a placeholder for Qwen AI API call
@@ -296,7 +305,7 @@ Camera is fixed in 9:16 vertical format, focusing on the cut and the vibrantly c
             print("📝 Generated video prompt")
             
             # Step 3: Generate video
-            video_file = self.generate_video_with_qwen(prompt)
+            video_file = self.generate_video_with_qwen(prompt, fruit_name)
             if not video_file:
                 raise Exception("Video generation failed")
             
