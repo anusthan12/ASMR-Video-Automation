@@ -18,12 +18,15 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: 🧱 Install dependencies
+      - name: 🧱 Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg imagemagick
+
+      - name: 🧪 Install Python packages
+        run: |
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --no-cache-dir -r requirements.txt
 
       - name: ▶️ Run ASMR Bot
         run: python asmr-automation-agent.py
