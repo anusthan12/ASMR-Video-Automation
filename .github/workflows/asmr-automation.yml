@@ -2,7 +2,7 @@ name: ASMR Video Automation
 
 on:
   schedule:
-    - cron: '0 */8 * * *'
+    - cron: '0 */8 * * *'  # Every 8 hours
   workflow_dispatch:
     inputs:
       force_run:
@@ -13,7 +13,7 @@ on:
 jobs:
   asmr-automation:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45  # Increased timeout for video processing
     
     steps:
     - name: Checkout repository
@@ -23,16 +23,72 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+        cache: 'pip'  # Cache pip dependencies
         
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg
+        sudo apt-get install -y ffmpeg libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libfontconfig1 libxrender1
+        # Verify ffmpeg installation
+        ffmpeg -version
+        
+    - name: Upgrade pip and install wheel
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
         
     - name: Install Python dependencies
       run: |
-        pip install --upgrade pip
-        pip install -r requirements.txt
+        # Install requirements with verbose output for debugging
+        pip install -r requirements.txt --verbose
+        # Verify critical imports
+        python -c "import gspread; print('✅ gspread imported successfully')"
+        python -c "import moviepy.editor; print('✅ moviepy imported successfully')"
+        python -c "import requests; print('✅ requests imported successfully')"
+        python -c "from google.oauth2.service_account import Credentials; print('✅ Google auth imported successfully')"
+        
+    - name: Validate environment variables
+      run: |
+        echo "Checking required environment variables..."
+        if [ -z "$GOOGLE_SHEET_ID" ]; then
+          echo "❌ GOOGLE_SHEET_ID is not set"
+          exit 1
+        fi
+        if [ -z "$GOOGLE_CREDENTIALS_JSON" ]; then
+          echo "❌ GOOGLE_CREDENTIALS_JSON is not set"
+          exit 1
+        fi
+        echo "✅ Required environment variables are set"
+      env:
+        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+        GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        
+    - name: Test Google Sheets connection
+      run: |
+        python -c "
+import os
+import json
+import base64
+import gspread
+from google.oauth2.service_account import Credentials
+
+try:
+    google_creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+    creds_data = json.loads(base64.b64decode(google_creds_json).decode())
+    creds = Credentials.from_service_account_info(
+        creds_data,
+        scopes=['https://www.googleapis.com/auth/spreadsheets']
+    )
+    gc = gspread.authorize(creds)
+    sheet_id = os.getenv('GOOGLE_SHEET_ID')
+    spreadsheet = gc.open_by_key(sheet_id)
+    print(f'✅ Successfully connected to Google Sheet: {spreadsheet.title}')
+except Exception as e:
+    print(f'❌ Google Sheets connection failed: {e}')
+    exit(1)
+        "
+      env:
+        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+        GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         
     - name: Run ASMR automation
       env:
@@ -41,20 +97,42 @@ jobs:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         RUN_ONCE: "true"
+        PYTHONUNBUFFERED: "1"  # Ensure real-time output
       run: |
-        python asmr-automation-agent.py
+        echo "🚀 Starting ASMR automation..."
+        python asmr-automation-agent.py 2>&1 | tee automation.log
         
-    - name: Upload logs
+    - name: Upload logs and artifacts
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: automation-logs
+        name: automation-logs-${{ github.run_number }}
         path: |
           *.log
           *.txt
+          *.mp4
+          *.mp3
+          *.wav
         retention-days: 7
         
-    - name: Cleanup
+    - name: Check automation results
       if: always()
       run: |
-        rm -f *.mp4 *.mp3 *.wav
+        if [ -f "automation.log" ]; then
+          echo "📋 Automation log summary:"
+          tail -20 automation.log
+          
+          if grep -q "✅ Automation cycle completed" automation.log; then
+            echo "🎉 Automation completed successfully!"
+          else
+            echo "⚠️ Automation may have encountered issues"
+            exit 1
+          fi
+        fi
+        
+    - name: Cleanup temporary files
+      if: always()
+      run: |
+        echo "🧹 Cleaning up temporary files..."
+        rm -f *.mp4 *.mp3 *.wav sound_*.* *.tmp
+        echo "✅ Cleanup completed"
