@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASMR Video Automation Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border-left: 5px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .card h3 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active { background-color: #28a745; }
+        .status-pending { background-color: #ffc107; }
+        .status-error { background-color: #dc3545; }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #6c757d, #495057);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .fruit-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .fruit-tag {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .fruit-tag.used {
+            background: #6c757d;
+        }
+
+        .log-entry {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .timestamp {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .workflow-step {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 ASMR Video Automation</h1>
+            <p>Automated Glass Fruit ASMR Video Generation & Publishing</p>
+        </div>
+
+        <!-- Status Overview -->
+        <div class="section">
+            <h2>📊 System Status</h2>
+            <div class="grid">
+                <div class="card">
+                    <h3><span class="status-indicator status-active"></span>Automation Status</h3>
+                    <p>Next run in: <strong id="next-run">2h 34m</strong></p>
+                    <p>Schedule: Every 8 hours</p>
+                    <button class="btn btn-secondary" onclick="toggleAutomation()">Pause Automation</button>
+                </div>
+                <div class="card">
+                    <h3><span class="status-indicator status-active"></span>Content Library</h3>
+                    <p>Total videos generated: <strong>247</strong></p>
+                    <p>Success rate: <strong>94.2%</strong></p>
+                    <button class="btn" onclick="showStats()">View Details</button>
+                </div>
+                <div class="card">
+                    <h3><span class="status-indicator status-pending"></span>Current Generation</h3>
+                    <p>Status: <strong>Generating video...</strong></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 67%"></div>
+                    </div>
+                    <p>Object: Glass Mango</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Sheets Integration -->
+        <div class="section">
+            <h2>📝 Content Tracking Sheet</h2>
+            <div class="card">
+                <h3>Google Sheets Configuration</h3>
+                <p><strong>Sheet Name:</strong> ASMR Content Tracker</p>
+                <p><strong>Sheet ID:</strong> 1RW6sUbA8M2mkhrEgK4AfR_PZJajkXFT5FcTcrQ8C0JE</p>
+                <p><strong>Columns:</strong> Object, URL, Created Date, Platform Status</p>
+                <button class="btn" onclick="openSheet()">Open Sheet</button>
+                <button class="btn btn-secondary" onclick="syncSheet()">Sync Now</button>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Object</th>
+                            <th>Video URL</th>
+                            <th>Created</th>
+                            <th>YouTube</th>
+                            <th>Instagram</th>
+                            <th>TikTok</th>
+                        </tr>
+                    </thead>
+                    <tbody id="content-table">
+                        <tr>
+                            <td>Glass Apple</td>
+                            <td><a href="#" target="_blank">Watch Video</a></td>
+                            <td>2 hours ago</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                        </tr>
+                        <tr>
+                            <td>Glass Orange</td>
+                            <td><a href="#" target="_blank">Watch Video</a></td>
+                            <td>10 hours ago</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                        </tr>
+                        <tr>
+                            <td>Glass Strawberry</td>
+                            <td><a href="#" target="_blank">Watch Video</a></td>
+                            <td>18 hours ago</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                            <td><span class="status-indicator status-active"></span>Live</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Fruit Database -->
+        <div class="section">
+            <h2>🍎 Fruit Database</h2>
+            <div class="card">
+                <h3>Available Fruits (Last 7 Used are Grayed Out)</h3>
+                <div class="fruit-list" id="fruit-list">
+                    <!-- Recently used (grayed out) -->
+                    <div class="fruit-tag used">Apple</div>
+                    <div class="fruit-tag used">Orange</div>
+                    <div class="fruit-tag used">Strawberry</div>
+                    <div class="fruit-tag used">Banana</div>
+                    <div class="fruit-tag used">Grape</div>
+                    <div class="fruit-tag used">Kiwi</div>
+                    <div class="fruit-tag used">Mango</div>
+                    
+                    <!-- Available -->
+                    <div class="fruit-tag">Pineapple</div>
+                    <div class="fruit-tag">Watermelon</div>
+                    <div class="fruit-tag">Peach</div>
+                    <div class="fruit-tag">Pear</div>
+                    <div class="fruit-tag">Cherry</div>
+                    <div class="fruit-tag">Plum</div>
+                    <div class="fruit-tag">Lemon</div>
+                    <div class="fruit-tag">Lime</div>
+                    <div class="fruit-tag">Coconut</div>
+                    <div class="fruit-tag">Papaya</div>
+                    <div class="fruit-tag">Dragon Fruit</div>
+                    <div class="fruit-tag">Passion Fruit</div>
+                    <div class="fruit-tag">Pomegranate</div>
+                    <div class="fruit-tag">Fig</div>
+                    <div class="fruit-tag">Avocado</div>
+                    <div class="fruit-tag">Blueberry</div>
+                    <div class="fruit-tag">Blackberry</div>
+                    <div class="fruit-tag">Raspberry</div>
+                    <div class="fruit-tag">Cranberry</div>
+                    <div class="fruit-tag">Apricot</div>
+                    <div class="fruit-tag">Nectarine</div>
+                    <div class="fruit-tag">Persimmon</div>
+                    <div class="fruit-tag">Lychee</div>
+                    <div class="fruit-tag">Rambutan</div>
+                    <div class="fruit-tag">Durian</div>
+                    <div class="fruit-tag">Jackfruit</div>
+                    <div class="fruit-tag">Starfruit</div>
+                    <div class="fruit-tag">Guava</div>
+                    <div class="fruit-tag">Pomelo</div>
+                    <div class="fruit-tag">Tangerine</div>
+                    <div class="fruit-tag">Mandarin</div>
+                    <div class="fruit-tag">Grapefruit</div>
+                    <div class="fruit-tag">Cantaloupe</div>
+                    <div class="fruit-tag">Honeydew</div>
+                </div>
+                <button class="btn" onclick="addFruit()">Add New Fruit</button>
+                <button class="btn btn-secondary" onclick="resetUsed()">Reset Used List</button>
+            </div>
+        </div>
+
+        <!-- Workflow Status -->
+        <div class="section">
+            <h2>⚙️ Workflow Pipeline</h2>
+            <div class="workflow-step">
+                <div class="step-number">1</div>
+                <div>
+                    <strong>Fruit Selection</strong>
+                    <p>AI picks new fruit from available list</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <div class="step-number">2</div>
+                <div>
+                    <strong>Prompt Generation</strong>
+                    <p>Create detailed ASMR video prompt</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <div class="step-number">3</div>
+                <div>
+                    <strong>Video Generation</strong>
+                    <p>Generate video using Veo 3 AI</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <div class="step-number">4</div>
+                <div>
+                    <strong>Multi-Platform Upload</strong>
+                    <p>Publish to YouTube, Instagram, TikTok</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <div class="step-number">5</div>
+                <div>
+                    <strong>Sheet Update</strong>
+                    <p>Log new content and cleanup old entries</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="section">
+            <h2>📋 Activity Log</h2>
+            <div id="activity-log">
+                <div class="log-entry">
+                    <div class="timestamp">2025-01-15 14:30:22</div>
+                    <div>✅ Successfully uploaded Glass Apple to all platforms</div>
+                </div>
+                <div class="log-entry">
+                    <div class="timestamp">2025-01-15 14:28:45</div>
+                    <div>🎬 Video generation completed for Glass Apple</div>
+                </div>
+                <div class="log-entry">
+                    <div class="timestamp">2025-01-15 14:23:10</div>
+                    <div>🤖 AI selected: Glass Apple</div>
+                </div>
+                <div class="log-entry">
+                    <div class="timestamp">2025-01-15 14:23:05</div>
+                    <div>🚀 Automation cycle started</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="section">
+            <h2>🎛️ Controls</h2>
+            <div class="grid">
+                <div class="card">
+                    <h3>Manual Actions</h3>
+                    <button class="btn" onclick="runNow()">🚀 Run Now</button>
+                    <button class="btn btn-secondary" onclick="testWorkflow()">🧪 Test Workflow</button>
+                    <button class="btn btn-success" onclick="downloadLogs()">📥 Download Logs</button>
+                </div>
+                <div class="card">
+                    <h3>Configuration</h3>
+                    <button class="btn" onclick="showConfig()">⚙️ Settings</button>
+                    <button class="btn btn-secondary" onclick="showApiKeys()">🔑 API Keys</button>
+                    <button class="btn btn-secondary" onclick="showSchedule()">⏰ Schedule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for configuration -->
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Configuration</h2>
+            <p>Configure your ASMR automation settings here.</p>
+            <div style="margin-top: 20px;">
+                <label>Schedule Interval (hours):</label>
+                <input type="number" value="8" style="margin-left: 10px; padding: 5px;">
+            </div>
+            <div style="margin-top: 15px;">
+                <label>Video Duration (seconds):</label>
+                <input type="number" value="60" style="margin-left: 10px; padding: 5px;">
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Timer for next run
+        function updateTimer() {
+            const nextRun = document.getElementById('next-run');
+            // This would be connected to your actual schedule
+            let hours = 2;
+            let minutes = 34;
+            let seconds = 0;
+            
+            setInterval(() => {
+                seconds--;
+                if (seconds < 0) {
+                    seconds = 59;
+                    minutes--;
+                    if (minutes < 0) {
+                        minutes = 59;
+                        hours--;
+                    }
+                }
+                nextRun.textContent = `${hours}h ${minutes}m ${seconds}s`;
+            }, 1000);
+        }
+
+        function toggleAutomation() {
+            const btn = event.target;
+            if (btn.textContent === 'Pause Automation') {
+                btn.textContent = 'Resume Automation';
+                btn.classList.add('btn-secondary');
+            } else {
+                btn.textContent = 'Pause Automation';
+                btn.classList.remove('btn-secondary');
+            }
+        }
+
+        function openSheet() {
+            window.open('https://docs.google.com/spreadsheets/d/1zKWr1zeoadgbJTd7E24N2TBXJKHlnQS9GW5I0-_9IgA/edit?usp=sharing', '_blank');
+        }
+
+        function syncSheet() {
+            alert('Syncing with Google Sheets...');
+            // Add actual sync logic here
+        }
+
+        function addFruit() {
+            const fruitName = prompt('Enter new fruit name:');
+            if (fruitName) {
+                const fruitList = document.getElementById('fruit-list');
+                const newFruit = document.createElement('div');
+                newFruit.className = 'fruit-tag';
+                newFruit.textContent = fruitName;
+                fruitList.appendChild(newFruit);
+            }
+        }
+
+        function resetUsed() {
+            const usedFruits = document.querySelectorAll('.fruit-tag.used');
+            usedFruits.forEach(fruit => {
+                fruit.classList.remove('used');
+            });
+        }
+
+        function runNow() {
+            alert('Manual run initiated! Check the activity log for updates.');
+            // Add actual run logic here
+        }
+
+        function testWorkflow() {
+            alert('Testing workflow... Check logs for results.');
+        }
+
+        function downloadLogs() {
+            alert('Downloading logs...');
+        }
+
+        function showConfig() {
+            document.getElementById('configModal').style.display = 'block';
+        }
+
+        function showApiKeys() {
+            alert('API Keys configuration would open here');
+        }
+
+        function showSchedule() {
+            alert('Schedule configuration would open here');
+        }
+
+        function showStats() {
+            alert('Detailed statistics would open here');
+        }
+
+        function closeModal() {
+            document.getElementById('configModal').style.display = 'none';
+        }
+
+        // Initialize timer
+        updateTimer();
+
+        // Add activity log entry
+        function addLogEntry(message) {
+            const log = document.getElementById('activity-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <div class="timestamp">${new Date().toLocaleString()}</div>
+                <div>${message}</div>
+            `;
+            log.insertBefore(entry, log.firstChild);
+        }
+
+        // Simulate activity
+        setTimeout(() => {
+            addLogEntry('🔄 System health check completed');
+        }, 5000);
+    </script>
+</body>
+</html>
