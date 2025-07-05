@@ -1,0 +1,4 @@
+Setting,Value,Description
+Schedule_Hours,8,Hours between automated runs
+Max_Recent_Objects,7,Number of recent objects to avoid
+Video_Duration_Seconds,10,Target video duration
