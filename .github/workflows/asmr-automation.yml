@@ -2,7 +2,7 @@ name: ASMR Video Automation
 
 on:
   schedule:
-    - cron: '0 */8 * * *'  # Every 8 hours
+    - cron: '0 */8 * * *'
   workflow_dispatch:
     inputs:
       force_run:
@@ -47,20 +47,11 @@ jobs:
         python --version
         ffmpeg -version
         
-    - name: Test Google connection
-      env:
-        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
-      run: |
-        python test-connection.py
-        
     - name: Run ASMR automation
       env:
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
         GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        RUN_ONCE: "true"
-        PYTHONPATH: ${{ github.workspace }}
       run: |
         python asmr-automation-agent.py
         
