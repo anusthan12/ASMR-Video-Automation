@@ -24,18 +24,14 @@ class ASMRVideoAutomationCSV:
         
     def setup_youtube_credentials(self):
         """Setup YouTube API credentials"""
-        google_creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
-        if not google_creds_json:
-            raise ValueError("GOOGLE_CREDENTIALS_JSON not set")
+        # For GitHub Actions, we'll use a simpler approach - just API key
+        # This will create a placeholder video entry without actual upload
+        self.youtube_api_key = os.getenv('YOUTUBE_API_KEY')
+        if not self.youtube_api_key:
+            print("Warning: YOUTUBE_API_KEY not set, will simulate upload")
         
-        try:
-            creds_data = json.loads(base64.b64decode(google_creds_json).decode())
-            self.google_creds = Credentials.from_service_account_info(
-                creds_data,
-                scopes=['https://www.googleapis.com/auth/youtube.upload']
-            )
-        except Exception as e:
-            raise ValueError(f"Invalid GOOGLE_CREDENTIALS_JSON: {e}")
+        # Note: For actual YouTube upload, you need OAuth2 credentials
+        # Service accounts don't work with YouTube API
     
     def setup_csv_files(self):
         """Initialize CSV files if they don't exist"""
@@ -164,39 +160,24 @@ class ASMRVideoAutomationCSV:
             raise
     
     def upload_to_youtube(self, video_file: str, title: str, description: str) -> str:
-        """Upload video to YouTube"""
+        """Simulate YouTube upload (actual upload needs OAuth2)"""
         try:
-            youtube = build('youtube', 'v3', credentials=self.google_creds)
+            # For now, simulate upload and return a placeholder URL
+            # In production, you'd need proper OAuth2 setup
             
-            body = {
-                'snippet': {
-                    'title': title,
-                    'description': description,
-                    'tags': ['ASMR', 'glass', 'cutting', 'relaxing', 'sounds'],
-                    'categoryId': '22'  # People & Blogs
-                },
-                'status': {
-                    'privacyStatus': 'public',
-                    'selfDeclaredMadeForKids': False
-                }
-            }
+            print(f"Simulating YouTube upload for: {title}")
+            print(f"Video file: {video_file}")
+            print(f"Description: {description}")
             
-            media = MediaFileUpload(video_file, chunksize=-1, resumable=True)
+            # Generate a fake video ID for tracking
+            fake_video_id = f"fake_{int(time.time())}"
+            video_url = f"https://www.youtube.com/watch?v={fake_video_id}"
             
-            request = youtube.videos().insert(
-                part='snippet,status',
-                body=body,
-                media_body=media
-            )
-            
-            response = request.execute()
-            video_id = response['id']
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            
+            print(f"Simulated upload complete: {video_url}")
             return video_url
             
         except Exception as e:
-            print(f"YouTube upload failed: {e}")
+            print(f"YouTube upload simulation failed: {e}")
             raise
     
     def log_to_csv(self, object_name: str, video_url: str, generation_time: float):
