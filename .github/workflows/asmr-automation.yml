@@ -47,6 +47,13 @@ jobs:
         python --version
         ffmpeg -version
         
+    - name: Test Google connection
+      env:
+        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+        GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+      run: |
+        python test-connection.py
+        
     - name: Run ASMR automation
       env:
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
