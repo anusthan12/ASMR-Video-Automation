@@ -10,6 +10,9 @@ on:
         required: false
         default: 'false'
 
+permissions:
+  contents: write  # Allow the workflow to push changes
+
 jobs:
   asmr-automation:
     runs-on: ubuntu-latest
