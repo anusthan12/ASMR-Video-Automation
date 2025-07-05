@@ -23,11 +23,22 @@ class ASMRVideoAutomation:
         self.sheet_id = os.getenv('GOOGLE_SHEET_ID')
         self.youtube_api_key = os.getenv('YOUTUBE_API_KEY')
         
+        if not self.sheet_id:
+            raise ValueError("GOOGLE_SHEET_ID not set")
+        
         google_creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
         if not google_creds_json:
             raise ValueError("GOOGLE_CREDENTIALS_JSON not set")
+        
+        print(f"📋 Using Sheet ID: {self.sheet_id}")
+        print(f"🔑 Credentials length: {len(google_creds_json)}")
+        
+        try:
+            creds_data = json.loads(base64.b64decode(google_creds_json).decode())
+            print(f"✅ Service account email: {creds_data.get('client_email', 'Not found')}")
+        except Exception as e:
+            raise ValueError(f"Invalid GOOGLE_CREDENTIALS_JSON format: {e}")
             
-        creds_data = json.loads(base64.b64decode(google_creds_json).decode())
         self.google_creds = Credentials.from_service_account_info(
             creds_data,
             scopes=['https://www.googleapis.com/auth/spreadsheets',
@@ -37,14 +48,70 @@ class ASMRVideoAutomation:
     def setup_sheets(self):
         try:
             gc = gspread.authorize(self.google_creds)
-            self.sheet = gc.open_by_key(self.sheet_id)
-            self.content_tracker = self.sheet.worksheet('ASMR Content Tracker')
-            self.fruit_database = self.sheet.worksheet('Fruit_Database')
-            self.settings = self.sheet.worksheet('Settings')
-            print("✅ Google Sheets connected")
+            
+            # First try to open the sheet
+            try:
+                self.sheet = gc.open_by_key(self.sheet_id)
+                print(f"✅ Found existing sheet: {self.sheet.title}")
+            except gspread.SpreadsheetNotFound:
+                print("❌ Spreadsheet not found. Creating new one...")
+                self.sheet = gc.create(f"ASMR Automation - {datetime.now().strftime('%Y%m%d')}")
+                print(f"✅ Created new sheet: {self.sheet.title}")
+                print(f"📋 New Sheet ID: {self.sheet.id}")
+                print("⚠️  Update your GOOGLE_SHEET_ID secret with the new ID above")
+            
+            # Setup worksheets
+            self.setup_worksheets()
+            
         except Exception as e:
             print(f"❌ Sheets connection failed: {e}")
             raise
+    
+    def setup_worksheets(self):
+        """Setup required worksheets if they don't exist"""
+        # Content Tracker
+        try:
+            self.content_tracker = self.sheet.worksheet('ASMR Content Tracker')
+            print("✅ Found ASMR Content Tracker sheet")
+        except gspread.WorksheetNotFound:
+            self.content_tracker = self.sheet.add_worksheet(title='ASMR Content Tracker', rows=100, cols=7)
+            headers = ['Object', 'Video_URL', 'Created_Date', 'YouTube_Status', 'Instagram_Status', 'TikTok_Status', 'Generation_Time']
+            self.content_tracker.update('A1:G1', [headers])
+            print("✅ Created ASMR Content Tracker sheet")
+        
+        # Fruit Database
+        try:
+            self.fruit_database = self.sheet.worksheet('Fruit_Database')
+            print("✅ Found Fruit_Database sheet")
+        except gspread.WorksheetNotFound:
+            self.fruit_database = self.sheet.add_worksheet(title='Fruit_Database', rows=100, cols=3)
+            headers = ['Fruit_Name', 'Category', 'Visual_Appeal_Score']
+            self.fruit_database.update('A1:C1', [headers])
+            # Add sample fruits
+            fruit_data = [
+                ['Apple', 'Common', '9'], ['Orange', 'Citrus', '8'], ['Strawberry', 'Berry', '10'],
+                ['Banana', 'Tropical', '7'], ['Grape', 'Berry', '9'], ['Kiwi', 'Exotic', '8'],
+                ['Mango', 'Tropical', '10'], ['Pineapple', 'Tropical', '9'], ['Watermelon', 'Melon', '8'],
+                ['Peach', 'Stone', '9'], ['Pear', 'Common', '8'], ['Cherry', 'Berry', '10']
+            ]
+            self.fruit_database.update('A2:C13', fruit_data)
+            print("✅ Created Fruit_Database sheet")
+        
+        # Settings
+        try:
+            self.settings = self.sheet.worksheet('Settings')
+            print("✅ Found Settings sheet")
+        except gspread.WorksheetNotFound:
+            self.settings = self.sheet.add_worksheet(title='Settings', rows=20, cols=3)
+            headers = ['Setting', 'Value', 'Description']
+            self.settings.update('A1:C1', [headers])
+            settings_data = [
+                ['Schedule_Hours', '8', 'Hours between automated runs'],
+                ['Max_Recent_Objects', '7', 'Number of recent objects to avoid'],
+                ['Video_Duration_Seconds', '10', 'Target video duration']
+            ]
+            self.settings.update('A2:C4', settings_data)
+            print("✅ Created Settings sheet")
             
     def get_settings(self) -> Dict:
         try:
