@@ -42,58 +42,87 @@ class ASMRVideoAutomation:
         )
         
     def setup_sheets(self):
-        try:
-            gc = gspread.authorize(self.google_creds)
-            
+        max_retries = 3
+        retry_delay = 5
+        
+        for attempt in range(max_retries):
             try:
-                self.sheet = gc.open_by_key(self.sheet_id)
-            except gspread.SpreadsheetNotFound:
-                self.sheet = gc.create(f"ASMR Automation - {datetime.now().strftime('%Y%m%d')}")
-                print(f"Created new sheet: {self.sheet.id}")
-            
-            self.setup_worksheets()
-            
-        except Exception as e:
-            print(f"Sheets setup failed: {e}")
-            raise
+                gc = gspread.authorize(self.google_creds)
+                
+                try:
+                    self.sheet = gc.open_by_key(self.sheet_id)
+                    print(f"Connected to sheet: {self.sheet.title}")
+                except gspread.SpreadsheetNotFound:
+                    print("Sheet not found, creating new one...")
+                    self.sheet = gc.create(f"ASMR Automation - {datetime.now().strftime('%Y%m%d')}")
+                    print(f"Created new sheet: {self.sheet.id}")
+                
+                self.setup_worksheets()
+                return
+                
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    print("All sheet connection attempts failed")
+                    raise
     
     def setup_worksheets(self):
-        # Content Tracker
-        try:
-            self.content_tracker = self.sheet.worksheet('ASMR Content Tracker')
-        except gspread.WorksheetNotFound:
-            self.content_tracker = self.sheet.add_worksheet(title='ASMR Content Tracker', rows=100, cols=7)
-            headers = ['Object', 'Video_URL', 'Created_Date', 'YouTube_Status', 'Instagram_Status', 'TikTok_Status', 'Generation_Time']
-            self.content_tracker.update('A1:G1', [headers])
+        worksheets_config = {
+            'ASMR Content Tracker': {
+                'headers': ['Object', 'Video_URL', 'Created_Date', 'YouTube_Status', 'Instagram_Status', 'TikTok_Status', 'Generation_Time'],
+                'rows': 100, 'cols': 7
+            },
+            'Fruit_Database': {
+                'headers': ['Fruit_Name', 'Category', 'Visual_Appeal_Score'],
+                'rows': 100, 'cols': 3,
+                'data': [
+                    ['Apple', 'Common', '9'], ['Orange', 'Citrus', '8'], ['Strawberry', 'Berry', '10'],
+                    ['Banana', 'Tropical', '7'], ['Grape', 'Berry', '9'], ['Kiwi', 'Exotic', '8'],
+                    ['Mango', 'Tropical', '10'], ['Pineapple', 'Tropical', '9'], ['Watermelon', 'Melon', '8'],
+                    ['Peach', 'Stone', '9'], ['Pear', 'Common', '8'], ['Cherry', 'Berry', '10']
+                ]
+            },
+            'Settings': {
+                'headers': ['Setting', 'Value', 'Description'],
+                'rows': 20, 'cols': 3,
+                'data': [
+                    ['Schedule_Hours', '8', 'Hours between automated runs'],
+                    ['Max_Recent_Objects', '7', 'Number of recent objects to avoid'],
+                    ['Video_Duration_Seconds', '10', 'Target video duration']
+                ]
+            }
+        }
         
-        # Fruit Database
-        try:
-            self.fruit_database = self.sheet.worksheet('Fruit_Database')
-        except gspread.WorksheetNotFound:
-            self.fruit_database = self.sheet.add_worksheet(title='Fruit_Database', rows=100, cols=3)
-            headers = ['Fruit_Name', 'Category', 'Visual_Appeal_Score']
-            self.fruit_database.update('A1:C1', [headers])
-            fruit_data = [
-                ['Apple', 'Common', '9'], ['Orange', 'Citrus', '8'], ['Strawberry', 'Berry', '10'],
-                ['Banana', 'Tropical', '7'], ['Grape', 'Berry', '9'], ['Kiwi', 'Exotic', '8'],
-                ['Mango', 'Tropical', '10'], ['Pineapple', 'Tropical', '9'], ['Watermelon', 'Melon', '8'],
-                ['Peach', 'Stone', '9'], ['Pear', 'Common', '8'], ['Cherry', 'Berry', '10']
-            ]
-            self.fruit_database.update('A2:C13', fruit_data)
-        
-        # Settings
-        try:
-            self.settings = self.sheet.worksheet('Settings')
-        except gspread.WorksheetNotFound:
-            self.settings = self.sheet.add_worksheet(title='Settings', rows=20, cols=3)
-            headers = ['Setting', 'Value', 'Description']
-            self.settings.update('A1:C1', [headers])
-            settings_data = [
-                ['Schedule_Hours', '8', 'Hours between automated runs'],
-                ['Max_Recent_Objects', '7', 'Number of recent objects to avoid'],
-                ['Video_Duration_Seconds', '10', 'Target video duration']
-            ]
-            self.settings.update('A2:C4', settings_data)
+        for ws_name, config in worksheets_config.items():
+            try:
+                ws = self.sheet.worksheet(ws_name)
+                print(f"Found existing {ws_name}")
+            except gspread.WorksheetNotFound:
+                ws = self.sheet.add_worksheet(
+                    title=ws_name, 
+                    rows=config['rows'], 
+                    cols=config['cols']
+                )
+                print(f"Created {ws_name}")
+                
+                # Add headers
+                ws.update('A1', [config['headers']])
+                
+                # Add data if exists
+                if 'data' in config:
+                    ws.update('A2', config['data'])
+            
+            # Store worksheet references
+            if ws_name == 'ASMR Content Tracker':
+                self.content_tracker = ws
+            elif ws_name == 'Fruit_Database':
+                self.fruit_database = ws
+            elif ws_name == 'Settings':
+                self.settings = ws
             
     def get_settings(self) -> Dict:
         try:
