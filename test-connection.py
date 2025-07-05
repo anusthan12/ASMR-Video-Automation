@@ -3,13 +3,13 @@
 import os
 import json
 import base64
+import time
 import gspread
 from google.oauth2.service_account import Credentials
 
 def test_google_connection():
-    print("🔍 Testing Google Sheets connection...")
+    print("Testing Google Sheets connection...")
     
-    # Check environment variables
     sheet_id = os.getenv('GOOGLE_SHEET_ID')
     creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
     
@@ -21,55 +21,60 @@ def test_google_connection():
         print("❌ GOOGLE_CREDENTIALS_JSON not set")
         return False
     
-    print(f"📋 Sheet ID: {sheet_id}")
-    print(f"🔑 Credentials length: {len(creds_json)}")
+    print(f"Sheet ID: {sheet_id}")
     
     try:
-        # Decode credentials
         creds_data = json.loads(base64.b64decode(creds_json).decode())
-        print(f"✅ Service account email: {creds_data.get('client_email', 'Not found')}")
+        print(f"Service account: {creds_data.get('client_email')}")
+        print(f"Project ID: {creds_data.get('project_id')}")
         
-        # Create credentials
         creds = Credentials.from_service_account_info(
             creds_data,
             scopes=['https://www.googleapis.com/auth/spreadsheets']
         )
         
-        # Test connection
         gc = gspread.authorize(creds)
-        print("✅ Google Sheets client authorized")
+        print("✅ Google client authorized")
         
-        # Try to access the sheet
-        try:
-            sheet = gc.open_by_key(sheet_id)
-            print(f"✅ Sheet found: {sheet.title}")
-            print(f"📊 Sheet URL: {sheet.url}")
-            
-            # List worksheets
-            worksheets = sheet.worksheets()
-            print(f"📋 Worksheets found: {[ws.title for ws in worksheets]}")
-            
-            return True
-            
-        except gspread.SpreadsheetNotFound:
-            print("❌ Spreadsheet not found!")
-            print("📝 Creating a new spreadsheet...")
-            
-            # Create new spreadsheet
-            new_sheet = gc.create(f"ASMR Automation Test")
-            print(f"✅ Created new sheet: {new_sheet.title}")
-            print(f"📋 New Sheet ID: {new_sheet.id}")
-            print(f"📊 Sheet URL: {new_sheet.url}")
-            print("⚠️  Update your GOOGLE_SHEET_ID secret with the new ID above")
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ Error accessing sheet: {e}")
-            return False
-            
+        # Try multiple times with backoff
+        for attempt in range(3):
+            try:
+                sheet = gc.open_by_key(sheet_id)
+                print(f"✅ Sheet found: {sheet.title}")
+                print(f"✅ Sheet URL: {sheet.url}")
+                
+                # Test read access
+                worksheets = sheet.worksheets()
+                print(f"✅ Worksheets: {[ws.title for ws in worksheets]}")
+                
+                # Test write access
+                test_ws = None
+                try:
+                    test_ws = sheet.worksheet('Test')
+                except gspread.WorksheetNotFound:
+                    test_ws = sheet.add_worksheet(title='Test', rows=10, cols=5)
+                    print("✅ Created test worksheet")
+                
+                test_ws.update('A1', f'Test at {time.strftime("%Y-%m-%d %H:%M:%S")}')
+                print("✅ Write test successful")
+                
+                # Clean up test
+                sheet.del_worksheet(test_ws)
+                print("✅ Test cleanup successful")
+                
+                return True
+                
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < 2:
+                    print("Retrying in 5 seconds...")
+                    time.sleep(5)
+                else:
+                    print("❌ All attempts failed")
+                    return False
+                    
     except Exception as e:
-        print(f"❌ Credentials error: {e}")
+        print(f"❌ Connection error: {e}")
         return False
 
 if __name__ == "__main__":
