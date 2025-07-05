@@ -46,7 +46,6 @@ jobs:
       run: |
         python --version
         ffmpeg -version
-        pip list
         
     - name: Run ASMR automation
       env:
