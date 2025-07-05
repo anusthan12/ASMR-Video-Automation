@@ -30,14 +30,10 @@ class ASMRVideoAutomation:
         if not google_creds_json:
             raise ValueError("GOOGLE_CREDENTIALS_JSON not set")
         
-        print(f"📋 Using Sheet ID: {self.sheet_id}")
-        print(f"🔑 Credentials length: {len(google_creds_json)}")
-        
         try:
             creds_data = json.loads(base64.b64decode(google_creds_json).decode())
-            print(f"✅ Service account email: {creds_data.get('client_email', 'Not found')}")
         except Exception as e:
-            raise ValueError(f"Invalid GOOGLE_CREDENTIALS_JSON format: {e}")
+            raise ValueError(f"Invalid GOOGLE_CREDENTIALS_JSON: {e}")
             
         self.google_creds = Credentials.from_service_account_info(
             creds_data,
@@ -49,45 +45,34 @@ class ASMRVideoAutomation:
         try:
             gc = gspread.authorize(self.google_creds)
             
-            # First try to open the sheet
             try:
                 self.sheet = gc.open_by_key(self.sheet_id)
-                print(f"✅ Found existing sheet: {self.sheet.title}")
             except gspread.SpreadsheetNotFound:
-                print("❌ Spreadsheet not found. Creating new one...")
                 self.sheet = gc.create(f"ASMR Automation - {datetime.now().strftime('%Y%m%d')}")
-                print(f"✅ Created new sheet: {self.sheet.title}")
-                print(f"📋 New Sheet ID: {self.sheet.id}")
-                print("⚠️  Update your GOOGLE_SHEET_ID secret with the new ID above")
+                print(f"Created new sheet: {self.sheet.id}")
             
-            # Setup worksheets
             self.setup_worksheets()
             
         except Exception as e:
-            print(f"❌ Sheets connection failed: {e}")
+            print(f"Sheets setup failed: {e}")
             raise
     
     def setup_worksheets(self):
-        """Setup required worksheets if they don't exist"""
         # Content Tracker
         try:
             self.content_tracker = self.sheet.worksheet('ASMR Content Tracker')
-            print("✅ Found ASMR Content Tracker sheet")
         except gspread.WorksheetNotFound:
             self.content_tracker = self.sheet.add_worksheet(title='ASMR Content Tracker', rows=100, cols=7)
             headers = ['Object', 'Video_URL', 'Created_Date', 'YouTube_Status', 'Instagram_Status', 'TikTok_Status', 'Generation_Time']
             self.content_tracker.update('A1:G1', [headers])
-            print("✅ Created ASMR Content Tracker sheet")
         
         # Fruit Database
         try:
             self.fruit_database = self.sheet.worksheet('Fruit_Database')
-            print("✅ Found Fruit_Database sheet")
         except gspread.WorksheetNotFound:
             self.fruit_database = self.sheet.add_worksheet(title='Fruit_Database', rows=100, cols=3)
             headers = ['Fruit_Name', 'Category', 'Visual_Appeal_Score']
             self.fruit_database.update('A1:C1', [headers])
-            # Add sample fruits
             fruit_data = [
                 ['Apple', 'Common', '9'], ['Orange', 'Citrus', '8'], ['Strawberry', 'Berry', '10'],
                 ['Banana', 'Tropical', '7'], ['Grape', 'Berry', '9'], ['Kiwi', 'Exotic', '8'],
@@ -95,12 +80,10 @@ class ASMRVideoAutomation:
                 ['Peach', 'Stone', '9'], ['Pear', 'Common', '8'], ['Cherry', 'Berry', '10']
             ]
             self.fruit_database.update('A2:C13', fruit_data)
-            print("✅ Created Fruit_Database sheet")
         
         # Settings
         try:
             self.settings = self.sheet.worksheet('Settings')
-            print("✅ Found Settings sheet")
         except gspread.WorksheetNotFound:
             self.settings = self.sheet.add_worksheet(title='Settings', rows=20, cols=3)
             headers = ['Setting', 'Value', 'Description']
@@ -111,14 +94,12 @@ class ASMRVideoAutomation:
                 ['Video_Duration_Seconds', '10', 'Target video duration']
             ]
             self.settings.update('A2:C4', settings_data)
-            print("✅ Created Settings sheet")
             
     def get_settings(self) -> Dict:
         try:
             settings_data = self.settings.get_all_records()
             return {row['Setting']: row['Value'] for row in settings_data}
-        except Exception as e:
-            print(f"❌ Settings error: {e}")
+        except Exception:
             return {'Schedule_Hours': 8, 'Max_Recent_Objects': 7}
     
     def get_recent_objects(self, max_recent: int = 7) -> List[str]:
@@ -130,15 +111,13 @@ class ASMRVideoAutomation:
                 if obj_name:
                     recent_objects.append(obj_name)
             return recent_objects
-        except Exception as e:
-            print(f"❌ Recent objects error: {e}")
+        except Exception:
             return []
     
     def get_available_fruits(self) -> List[Dict]:
         try:
             return self.fruit_database.get_all_records()
-        except Exception as e:
-            print(f"❌ Fruits database error: {e}")
+        except Exception:
             return []
     
     def select_new_fruit(self) -> str:
@@ -160,33 +139,29 @@ class ASMRVideoAutomation:
         
         return "Apple"
     
-    def create_mock_video(self, fruit_name: str) -> str:
-        """Create a simple test video using ffmpeg"""
+    def create_video(self, fruit_name: str) -> str:
         try:
-            video_filename = f"glass_{fruit_name}_{int(time.time())}.mp4"
+            video_filename = f"glass_{fruit_name.lower()}_{int(time.time())}.mp4"
             
-            # Create a simple colored video with text
             cmd = [
                 'ffmpeg', '-y', '-f', 'lavfi', 
-                '-i', f'color=c=blue:size=720x1280:duration=10',
-                '-vf', f'drawtext=text="Glass {fruit_name} ASMR":fontcolor=white:fontsize=40:x=(w-text_w)/2:y=(h-text_h)/2',
-                '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '10',
+                '-i', 'color=c=0x1a1a2e:size=720x1280:duration=10',
+                '-vf', f'drawtext=text="Glass {fruit_name} ASMR":fontcolor=white:fontsize=30:x=(w-text_w)/2:y=(h-text_h)/2',
+                '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'fast',
                 video_filename
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
-                print(f"❌ FFmpeg error: {result.stderr}")
-                return None
+                raise Exception(f"FFmpeg error: {result.stderr}")
                 
-            print(f"✅ Mock video created: {video_filename}")
             return video_filename
             
         except Exception as e:
-            print(f"❌ Video creation failed: {e}")
-            return None
+            print(f"Video creation failed: {e}")
+            raise
     
-    def upload_to_youtube(self, video_file: str, title: str, description: str) -> Optional[str]:
+    def upload_to_youtube(self, video_file: str, title: str, description: str) -> str:
         try:
             youtube = build('youtube', 'v3', credentials=self.google_creds)
             
@@ -211,18 +186,15 @@ class ASMRVideoAutomation:
                 media_body=media
             )
             
-            print("📤 Uploading to YouTube...")
             response = request.execute()
-            
             video_id = response['id']
             video_url = f"https://www.youtube.com/watch?v={video_id}"
             
-            print(f"✅ YouTube upload successful: {video_url}")
             return video_url
             
         except Exception as e:
-            print(f"❌ YouTube upload failed: {e}")
-            return None
+            print(f"YouTube upload failed: {e}")
+            raise
     
     def log_to_sheet(self, object_name: str, video_url: str, generation_time: float):
         try:
@@ -231,9 +203,9 @@ class ASMRVideoAutomation:
             
             new_row = [
                 f"Glass {object_name}",
-                video_url or "Failed",
+                video_url,
                 current_time,
-                "Live" if video_url else "Failed",
+                "Live",
                 "Pending",
                 "Pending",
                 gen_time_str
@@ -246,27 +218,24 @@ class ASMRVideoAutomation:
             if len(all_rows) > 21:
                 self.content_tracker.delete_rows(2)
             
-            print("✅ Logged to Google Sheets")
-            
         except Exception as e:
-            print(f"❌ Sheet logging failed: {e}")
+            print(f"Sheet logging failed: {e}")
     
     def run_automation_cycle(self):
         start_time = time.time()
-        print(f"🚀 Starting ASMR automation cycle at {datetime.now()}")
         
         try:
             fruit_name = self.select_new_fruit()
-            print(f"🍎 Selected fruit: {fruit_name}")
+            print(f"Selected fruit: {fruit_name}")
             
-            video_file = self.create_mock_video(fruit_name)
-            if not video_file:
-                raise Exception("Video generation failed")
+            video_file = self.create_video(fruit_name)
+            print(f"Video created: {video_file}")
             
             title = f"ASMR Glass {fruit_name} Cutting & Slicing Sounds 🔪✨"
             description = f"Relaxing ASMR video of cutting a glass {fruit_name.lower()}. Perfect for sleep, study, and relaxation. #ASMR #Glass #Cutting #Relaxing"
             
             video_url = self.upload_to_youtube(video_file, title, description)
+            print(f"Uploaded to YouTube: {video_url}")
             
             generation_time = (time.time() - start_time) / 60
             self.log_to_sheet(fruit_name, video_url, generation_time)
@@ -275,13 +244,13 @@ class ASMRVideoAutomation:
             if os.path.exists(video_file):
                 os.remove(video_file)
             
-            print(f"✅ Automation cycle completed in {generation_time:.1f} minutes")
+            print(f"Automation completed in {generation_time:.1f} minutes")
             return True
             
         except Exception as e:
-            print(f"❌ Automation cycle failed: {e}")
+            print(f"Automation failed: {e}")
             generation_time = (time.time() - start_time) / 60
-            self.log_to_sheet(fruit_name if 'fruit_name' in locals() else "Unknown", None, generation_time)
+            self.log_to_sheet(fruit_name if 'fruit_name' in locals() else "Unknown", "Failed", generation_time)
             return False
 
 def main():
@@ -290,7 +259,7 @@ def main():
         success = automation.run_automation_cycle()
         sys.exit(0 if success else 1)
     except Exception as e:
-        print(f"❌ Fatal error: {e}")
+        print(f"Fatal error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
