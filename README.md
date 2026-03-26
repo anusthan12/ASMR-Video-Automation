@@ -72,11 +72,66 @@ The automation was structured as a sequential, fault-tolerant pipeline across fo
 
 All runtime behavior is controlled through a central `config.yaml` file. This includes YouTube channel targeting, scheduling intervals, content generation parameters, and references to securely stored credentials.
 
+> ⚠️ **No API keys or credentials are hardcoded anywhere in this codebase.** All sensitive values are loaded from environment variables or a `.env` file excluded from version control via `.gitignore`.
+```yaml
+# config.yaml (example structure — values omitted)
+youtube:
+  channel_id: YOUR_CHANNEL_ID
+  default_privacy: public
+  category_id: "22"
+
+scheduling:
+  interval_hours: 8
+
+content:
+  themes:
+    - rainfall_ambient
+    - soft_tapping
+    - whisper_narrative
+  audio_duration_seconds: 600
+
+credentials:
+  client_secrets_path: /path/to/client_secrets.json
+  token_path: /path/to/token.json
+```
+
+---
+
+## ⚠️ Important Notice — Service Discontinuation
+
+The automated content generation and upload services operated by this system have been **permanently terminated**.
+
+This decision was made in direct response to new regulations introduced by the **Indian Government** concerning the monetization of AI-generated video content on platforms such as YouTube. These regulatory changes materially impact the economic viability of automated AI content pipelines operating within India.
+
+📎 Reference: [YouTube Monetisation Update — Economic Times](https://economictimes.indiatimes.com/news/new-updates/youtube-monetisation-update-today-who-will-be-affected-is-there-new-eligibility-requirement-whats-changing-heres-all/articleshow/122482003.cms?from=mdr)
+
+This project adheres to all applicable local and international regulations. The codebase is preserved in its entirety as a **technical reference and educational resource**, demonstrating the architecture and implementation of a production-grade, end-to-end AI content automation system.
+
+---
+
+## 💡 What This Project Demonstrates
+
+Beyond its original use case, this codebase serves as a working reference for:
+
+- **Multi-stage pipeline architecture** in Python for content automation.
+- **Audio engineering in Python** — mixing, layering, and spatializing sound programmatically.
+- **YouTube Data API v3 integration** — authenticated uploads, metadata management, and channel automation.
+- **Secure credential management** using Google Cloud and OAuth 2.0 flows.
+- **Scheduler design** for long-running, self-healing automation processes.
+- **FFmpeg integration** for production-quality media encoding from within a Python application.
+
+---
+
+## 📬 Connect & Collaborate
+
+Open to discussions on automation engineering, AI content systems, and high-impact technical projects.
+
+- **LinkedIn:** [linkedin.com/in/anusthan12](https://www.linkedin.com/in/anusthan12/)
+- **Email:** [anusthan.singh12@gmail.com](mailto:anusthan.singh12@gmail.com)
+- **Portfolio:** [anusthan-singh.vercel.app](https://anusthan-singh.vercel.app/)
+
+---
+
 <div align="center">
   <p>Built and maintained by <a href="https://github.com/anusthan12">Anusthan Singh</a> · © 2025</p>
 </div>
-
-> ⚠️ **No API keys or credentials are hardcoded anywhere in this codebase.** All sensitive values are loaded from environment variables or a `.env` file excluded from version control via `.gitignore`.
-```yaml
-
-
