@@ -72,9 +72,11 @@ The automation was structured as a sequential, fault-tolerant pipeline across fo
 
 All runtime behavior is controlled through a central `config.yaml` file. This includes YouTube channel targeting, scheduling intervals, content generation parameters, and references to securely stored credentials.
 
-> ⚠️ **No API keys or credentials are hardcoded anywhere in this codebase.** All sensitive values are loaded from environment variables or a `.env` file excluded from version control via `.gitignore`.
-```yaml
-
 <div align="center">
   <p>Built and maintained by <a href="https://github.com/anusthan12">Anusthan Singh</a> · © 2025</p>
 </div>
+
+> ⚠️ **No API keys or credentials are hardcoded anywhere in this codebase.** All sensitive values are loaded from environment variables or a `.env` file excluded from version control via `.gitignore`.
+```yaml
+
+
